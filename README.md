@@ -1,2 +1,2 @@
-# MineSweeper
+# Minesweeper
 Minesweeper project in Haskell
