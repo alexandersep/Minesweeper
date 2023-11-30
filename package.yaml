@@ -1,0 +1,53 @@
+name:                Minesweeper
+version:             0.1.0.0
+github:              "alexandersep/Minesweeper"
+license:             MIT
+author:              "Alexander Sepelenco"
+maintainer:          "sepelena@tcd.ie"
+copyright:           "2023 Alexander Sepelenco"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+- stack.yaml
+- package.yaml
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/alexandersep/Minesweeper#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-export-lists
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+
+library:
+  source-dirs: src
+  #dependencies:
+
+executables:
+  Minesweeper-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - Minesweeper
+    - threepenny-gui
+    - mtl
