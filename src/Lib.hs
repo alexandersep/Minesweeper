@@ -2,9 +2,11 @@ module Lib
     ( setup, displayGame, 
       place, 
       empty, mine, number,
-      game, replaceSquare, replaceRow, 
+      gameState, playerGameState, replaceSquare, replaceRow, 
       generateMines, randomLocations,
-      currTime, placeRandomList, countSquares
+      currTime, placeRandomList, countSquares,
+      playerGame, game
+
     ) where
 
 import System.Random
@@ -33,15 +35,14 @@ number :: Int -> Square
 number x = Number x
 
 -- Minesweeper functionality
-setup :: Width -> Height -> Game
-setup w h = ([[Empty | _ <- [0..w-1]] | _ <- [0..h-1]], (w,h))
+setup :: Width -> Height -> Square -> Game
+setup w h sq = ([[sq | _ <- [0..w-1]] | _ <- [0..h-1]], (w,h))
 
-revealSquare :: Square -> Location -> Square
-revealSquare (Hidden) (x,y) = 
-revealSquare sq _ = sq
+gameState :: Game
+gameState = setup 9 9 Empty
 
-game :: Game
-game = setup 9 9
+playerGameState:: Game
+playerGameState = setup 9 9 Hidden
 
 replaceSquare :: Square -> Int -> Row -> Row
 replaceSquare _ _ [] = []
@@ -95,3 +96,15 @@ displayRow ((Empty):xs)    = putStr "E, " >> displayRow xs
 displayRow ((Mine):xs)     = putStr "M, " >> displayRow xs
 displayRow ((Hidden):xs)   = putStr "H, " >> displayRow xs
 displayRow ((Number n):xs) = putStr (show n ++ ", ") >> displayRow xs
+
+playerGame :: IO Game
+playerGame = do
+    putStrLn "Player Game State"
+    return $ playerGameState
+
+game :: IO Game
+game = do
+    putStrLn "Game State"
+    let (_, (x, y)) = gameState
+    mines <- generateMines (x,y) 8
+    return $ placeRandomList gameState (mines) mine
