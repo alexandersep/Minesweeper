@@ -37,7 +37,9 @@ ghc-options:
 
 library:
   source-dirs: src
-  #dependencies:
+  dependencies:
+  - random # System.Random
+  - time # Data.Time.Clock.POSIX
 
 executables:
   Minesweeper-exe:

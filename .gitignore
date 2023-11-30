@@ -1,3 +1,4 @@
 .stack-work/
 latex/
 stack.yaml.lock
+*.cabal
