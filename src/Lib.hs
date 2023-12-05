@@ -1,14 +1,14 @@
 module Lib
     ( setup, displayGame, 
       place, 
-      empty, mine, hidden, number,
+      empty, mine, hidden, mark, number, 
       gameState, playerGameState, replaceSquare, replaceRow, 
       generateMines, randomLocations,
       currTime, placeRandomList, countSquares,
       playerGame, game, 
       revealSquare, gameLoop,
       incrementSurroundings, incrementSquare, placeNumbers,
-      revealNeighbours, revealSquares
+      revealNeighbours, revealSquares, placeLocations
     ) where
 
 import System.Random
@@ -27,13 +27,15 @@ data Square = Empty
             | Mine 
             | Hidden
             | Number Int
+            | Mark
             deriving (Show, Eq)
 
 -- smart functions 
-empty, mine, hidden :: Square
+empty, mine, hidden, mark :: Square
 empty = Empty
 mine = Mine
 hidden = Hidden
+mark = Mark
 number :: Int -> Square
 number x = Number x
 
@@ -48,29 +50,28 @@ replaceSquare sq n (x:xs) = x:replaceSquare sq (n-1) xs
 
 replaceRow :: Square -> Location -> Board -> Board 
 replaceRow _ _ [] = []
-replaceRow sq (0,y) (z:zs) = replaceSquare sq y z : zs
-replaceRow sq (x,y) (z:zs) = z:replaceRow sq (x-1,y) zs
+replaceRow sq (x,0) (z:zs) = replaceSquare sq x z : zs
+replaceRow sq (x,y) (z:zs) = z:replaceRow sq (x,y-1) zs
 
 -- Location will always be within bounds but in case not nothing will occur
 place :: Game -> Location -> Square -> Game
 place (b, l) (x,y) sq = (replaceRow sq (x,y) b, l) 
 
-placeLocations :: Game -> [Location] -> Game
-placeLocations game [] = game
-placeLocations game (l:ls) = placeLocations rv ls 
-    where rv = case revealSquare game l of
-                    Just x  -> place game l x
-                    Nothing -> game
+placeLocations :: Game -> Game -> [Location] -> Game
+placeLocations pG _ [] = pG
+placeLocations pG lG (l:ls) = case revealSquare lG l of 
+                             Just x -> placeLocations (place pG l x) lG ls
+                             Nothing -> pG
 
 revealSquare :: Game -> Location -> Maybe Square
 revealSquare (b, (w,h)) (x,y)
- | x <= (w-1) && x >= 0 && y <= (h-1) && y >= 0 = Just $ b !! x !! y
+ | x <= (w-1) && x >= 0 && y <= (h-1) && y >= 0 = Just $ b !! y !! x
  | otherwise = Nothing
 
 revealSquares :: Game -> [Location] -> [Square]
 revealSquares _ [] = []
-revealSquares game ((x,y):ls) = case revealSquare game (y,x) of
-                                    Just x -> x : revealSquares game ls
+revealSquares game ((x,y):ls) = case revealSquare game (x,y) of
+                                    Just x  -> x : revealSquares game ls
                                     Nothing -> revealSquares game ls
 
 -- Game -> Empty Location -> Game
@@ -81,15 +82,16 @@ revealNeighbours game l
 
 revealNeighbours' :: Game -> [Location] -> [Location] -> [Location] 
 revealNeighbours' _ [] _ = [] 
-revealNeighbours' game@(b,(w,h)) ((x,y):ls) visited
- | x <= (w-1) && x >= 0 && y <= (h-1) && y >= 0 && minelessNeighbours game (x,y) && not (elem (x,y) visited) = 
-    (x,y) : revealNeighbours' game ((x-1,y-1):(x,y-1):(x+1,y-1):(x-1,y):(x+1,y):(x-1,y+1):(x,y+1):(x+1,y+1):ls) ((x,y):visited)
- | isMinelessSquare game (x,y) && b && not (elem (x,y) visited) = (x,y) : revealNeighbours' game ls ((x,y):visited)
+revealNeighbours' game@(_,(w,h)) ((x,y):ls) visited
+ | limit && minelessNeighbours game (x,y) && not (elem (x,y) visited)    = (x,y) : revealNeighbours' game surroundings ((x,y):visited)
+ | limit && isMinelessSquare game (x,y) && bool && not (elem (x,y) visited) = (x,y) : revealNeighbours' game ls ((x,y):visited)
  | otherwise = revealNeighbours' game ls ((x,y):visited)
     where rv = revealSquare game (x,y)
-          b  = case rv of
-                Just x  -> True 
-                Nothing -> False
+          bool  = case rv of
+                    Just _  -> True 
+                    Nothing -> False
+          limit = x <= (w-1) && x >= 0 && y <= (h-1) && y >= 0 
+          surroundings = (x-1,y-1):(x,y-1):(x+1,y-1):(x-1,y):(x+1,y):(x-1,y+1):(x,y+1):(x+1,y+1):ls
  
 isMinelessSquare :: Game -> Location -> Bool
 isMinelessSquare game (x,y) = case revealSquare game (x,y) of
@@ -97,7 +99,8 @@ isMinelessSquare game (x,y) = case revealSquare game (x,y) of
                                     Empty    -> True
                                     Hidden   -> False -- Unknown
                                     Mine     -> False
-                                    Number n -> True
+                                    Number _ -> True
+                                    Mark     -> True
                                 Nothing -> True -- Not a valid coordinate
 
 minelessNeighbours :: Game -> Location -> Bool
@@ -127,6 +130,7 @@ incrementSquare game (x,y) = do
                Empty    -> place game (x,y) (Number 1) -- Empty means Number 0 technically
                Mine     -> game
                Hidden   -> game
+               Mark     -> game
                Number n -> place game (x,y) (Number (n+1))
         Nothing -> game
 
@@ -172,17 +176,19 @@ displayRow []  = return ()
 displayRow [Empty]    = putStr "E" 
 displayRow [Mine]     = putStr "M"
 displayRow [Hidden]   = putStr "H"
+displayRow [Mark]     = putStr "X"
 displayRow [Number n] = putStr (show n)
 displayRow ((Empty):xs)    = putStr "E, " >> displayRow xs
 displayRow ((Mine):xs)     = putStr "M, " >> displayRow xs
 displayRow ((Hidden):xs)   = putStr "H, " >> displayRow xs
+displayRow ((Mark):xs)     = putStr "X, " >> displayRow xs
 displayRow ((Number n):xs) = putStr (show n ++ ", ") >> displayRow xs
 
 gameState :: Game
-gameState = setup 3 3 Empty
+gameState = setup 9 9 Empty
 
 playerGameState:: Game
-playerGameState = setup 3 3 Hidden
+playerGameState = setup 9 9 Hidden
 
 playerGame :: IO Game
 playerGame = do
@@ -193,7 +199,7 @@ game :: IO Game
 game = do
     putStrLn "Game State"
     let (_, (x, y)) = gameState
-    mines <- generateMines (x,y) 1
+    mines <- generateMines (x,y) 8
     let mineGame   = placeRandomList gameState (mines) Mine
     let numberGame = placeNumbers mineGame mines
     return $ numberGame
@@ -201,27 +207,41 @@ game = do
 gameLoop :: Game -> Game -> IO ()
 gameLoop pG lG = do
     displayGame pG
-    putStr "Give x coordinate "
-    y <- getLine -- I know this is weird, by coordinatates are backwards
-    putStr "Give y coordinate "
-    x <- getLine
-    let xInt = read x :: Int
-    let yInt = read y :: Int
-    let sq = revealSquare lG (xInt, yInt)
-    case sq of
-        Just a  -> do
-            putStrLn ("The Square is " ++ (show a))
-            case a of
-                Mine -> do
-                    let updatedGame = (place pG (xInt,yInt) a)
-                    displayGame updatedGame
-                    putStrLn "Game Over"
-                _    -> do
-                    let updatedGame = (place pG (xInt,yInt) a)
-                    let rN = revealNeighbours updatedGame (xInt, yInt)
-                    putStrLn (show rN)
-                    let newestGame = placeLocations updatedGame rN
-                    gameLoop newestGame lG
-        Nothing -> do
-            putStrLn "(x,y) Given was invalid, try again"
-            gameLoop pG lG
+    if (countSquares pG Hidden) + (countSquares pG Mark) == (countSquares lG Mine)
+        then putStrLn "You win"
+        else do
+            putStr "Mark or select square (m/s)?: "
+            ms <- getLine
+            putStr "Give x coordinate "
+            x <- getLine
+            putStr "Give y coordinate "
+            y <- getLine
+            let xInt = read x :: Int
+            let yInt = read y :: Int
+            let sq = revealSquare lG (xInt, yInt)
+            case sq of
+                Just a  -> do
+                    if ms == "m"
+                        then do
+                            if a == Mark
+                                then do
+                                    putStrLn "You have marked the square"
+                                    gameLoop (place pG (xInt, yInt) Hidden) lG
+                                else do
+                                    putStrLn "You have marked the square"
+                                    gameLoop (place pG (xInt,yInt) Mark) lG
+                        else do
+                            putStrLn ("The Square is " ++ (show a))
+                            case a of
+                                Mine -> do
+                                    let updatedGame = (place pG (xInt,yInt) a)
+                                    displayGame updatedGame
+                                    putStrLn "Game Over"
+                                _    -> do
+                                    let updatedGame = (place pG (xInt,yInt) a)
+                                    let rN = revealNeighbours lG (xInt, yInt)
+                                    let newestGame = placeLocations updatedGame lG rN
+                                    gameLoop newestGame lG
+                Nothing -> do
+                    putStrLn "(x,y) Given was invalid, try again"
+                    gameLoop pG lG 
