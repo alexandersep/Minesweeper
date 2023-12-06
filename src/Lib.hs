@@ -8,7 +8,8 @@ module Lib
       playerGame, game, 
       revealSquare, gameLoop,
       incrementSurroundings, incrementSquare, placeNumbers,
-      revealNeighbours, revealSquares, placeLocations
+      revealNeighbours, revealSquares, placeLocations,
+      repeatIncr, printList
     ) where
 
 import System.Random
@@ -65,8 +66,9 @@ placeLocations pG lG (l:ls) = case revealSquare lG l of
 
 revealSquare :: Game -> Location -> Maybe Square
 revealSquare (b, (w,h)) (x,y)
- | x <= (w-1) && x >= 0 && y <= (h-1) && y >= 0 = Just $ b !! y !! x
+ | limit     = Just $ b !! y !! x
  | otherwise = Nothing
+    where limit = x <= (w-1) && x >= 0 && y <= (h-1) && y >= 0
 
 revealSquares :: Game -> [Location] -> [Square]
 revealSquares _ [] = []
@@ -83,7 +85,7 @@ revealNeighbours game l
 revealNeighbours' :: Game -> [Location] -> [Location] -> [Location] 
 revealNeighbours' _ [] _ = [] 
 revealNeighbours' game@(_,(w,h)) ((x,y):ls) visited
- | limit && minelessNeighbours game (x,y) && not (elem (x,y) visited)    = (x,y) : revealNeighbours' game surroundings ((x,y):visited)
+ | limit && minelessNeighbours game (x,y) && not (elem (x,y) visited)       = (x,y) : revealNeighbours' game surroundings ((x,y):visited)
  | limit && isMinelessSquare game (x,y) && bool && not (elem (x,y) visited) = (x,y) : revealNeighbours' game ls ((x,y):visited)
  | otherwise = revealNeighbours' game ls ((x,y):visited)
     where rv = revealSquare game (x,y)
@@ -168,8 +170,15 @@ currTime = do
     return (round time)
 
 displayGame :: Game -> IO ()
-displayGame ([], (x,y)) = putStrLn (show x ++ "x" ++ show y)
-displayGame ((l:ls), (x,y)) = putStr "[" >>  displayRow l  >> putStrLn "]" >> displayGame (ls,(x,y))
+displayGame ([], (x,y)) = putStr " " >> printList (take x $ repeatIncr (-1)) >> putStrLn (show x ++ "x" ++ show y)
+displayGame ((l:ls), (x,y)) = putStr "[" >>  displayRow l  >> putStrLn "]" >> >> displayGame (ls,(x,y))
+
+repeatIncr x = map (+1) [x..] 
+
+printList :: Show a => [a] -> IO ()
+printList []  = return ()
+printList [x] = putStrLn (show x) 
+printList (x:xs) = putStr ((show x) ++ ", ") >> printList xs
 
 displayRow :: Row -> IO ()
 displayRow []  = return ()
@@ -207,7 +216,7 @@ game = do
 gameLoop :: Game -> Game -> IO ()
 gameLoop pG lG = do
     displayGame pG
-    if (countSquares pG Hidden) + (countSquares pG Mark) == (countSquares lG Mine)
+    if (countSquares pG Number) + (countSquares pG Empty) == (countSquares lG Number) + (countSquares lG Empty)
         then putStrLn "You win"
         else do
             putStr "Mark or select square (m/s)?: "
