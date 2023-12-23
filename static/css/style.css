@@ -1,0 +1,17 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #262626; /* background colour */ 
+    background: url('sigma.gif') no-repeat; 
+    background-size: cover;
+    animation-name: flip;
+    animation-duration: 2s;
+}
+
+.board {
+    width: 800px; 
+    height: 600px;
+    margin: 50px auto;
+    background-size: cover;
+    position: relative;
+}

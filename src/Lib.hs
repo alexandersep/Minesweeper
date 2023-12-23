@@ -9,7 +9,8 @@ module Lib
       revealSquare, gameLoop,
       incrementSurroundings, incrementSquare, placeNumbers,
       revealNeighbours, revealSquares, placeLocations,
-      repeatIncr, printList
+      repeatIncr, printList, locateSquares, match,
+      Game, Board, Row, Square(..)
     ) where
 
 import System.Random
@@ -116,6 +117,20 @@ minelessNeighbours game (x,y) = g && g1 && g2 && g3 && g4 && g5 && g6 && g7
           g6 = isMinelessSquare game (x,y+1)   -- down middle
           g7 = isMinelessSquare game (x+1,y+1) -- down right
 
+
+locateSquares :: Game -> Square -> [Location]
+locateSquares g sq = locateSquares' g (0, 0) sq
+
+locateSquares' :: Game -> Location -> Square -> [Location]
+locateSquares' g@(b, (w,h)) (x,y) sq
+ | x == w = []
+ | y == h = locateSquares' g (x+1,0) sq
+ | sq == b !! y !! x = (x,y) : locateSquares' g (x,y+1) sq
+ | otherwise         = locateSquares' g (x,y+1) sq
+
+match :: [Location] -> [Location] -> Bool
+match xs ys = DL.sort xs == DL.sort ys
+
 placeRandomList :: Game -> [Location] -> Square -> Game
 placeRandomList (b, l) [] _ = (b,l)
 placeRandomList (b, l) (x:xs) sq = placeRandomList (place (b, l) x sq) xs sq
@@ -170,9 +185,13 @@ currTime = do
     return (round time)
 
 displayGame :: Game -> IO ()
-displayGame ([], (x,y)) = putStr " " >> printList (take x $ repeatIncr (-1)) >> putStrLn (show x ++ "x" ++ show y)
-displayGame ((l:ls), (x,y)) = putStr "[" >>  displayRow l  >> putStrLn "]" >> >> displayGame (ls,(x,y))
+displayGame = displayGame' 0
 
+displayGame' :: Int -> Game -> IO ()
+displayGame' _ ([], (x,y)) = printDefaultColour >> putStr " " >> printList (take x $ repeatIncr (-1)) >> putStrLn (show x ++ "x" ++ show y)
+displayGame' i ((l:ls), (x,y)) = printDefaultColour >> putStr "[" >>  displayRow l  >> putStr "]" >> putStrLn (" " ++ (show i)) >> printDefaultColour >> displayGame' (i+1) (ls,(x,y))
+
+repeatIncr :: (Num b, Enum b) => b -> [b]
 repeatIncr x = map (+1) [x..] 
 
 printList :: Show a => [a] -> IO ()
@@ -180,50 +199,55 @@ printList []  = return ()
 printList [x] = putStrLn (show x) 
 printList (x:xs) = putStr ((show x) ++ ", ") >> printList xs
 
+printDefaultColour :: IO ()
+printDefaultColour = putStr "\ESC[90m"
+
 displayRow :: Row -> IO ()
-displayRow []  = return ()
-displayRow [Empty]    = putStr "E" 
-displayRow [Mine]     = putStr "M"
-displayRow [Hidden]   = putStr "H"
-displayRow [Mark]     = putStr "X"
-displayRow [Number n] = putStr (show n)
-displayRow ((Empty):xs)    = putStr "E, " >> displayRow xs
-displayRow ((Mine):xs)     = putStr "M, " >> displayRow xs
-displayRow ((Hidden):xs)   = putStr "H, " >> displayRow xs
-displayRow ((Mark):xs)     = putStr "X, " >> displayRow xs
-displayRow ((Number n):xs) = putStr (show n ++ ", ") >> displayRow xs
+displayRow []  = printDefaultColour
+displayRow [Empty]    = putStr "\ESC[36mE" >> printDefaultColour 
+displayRow [Mine]     = putStr "\ESC[31mM" >> printDefaultColour
+displayRow [Hidden]   = putStr "\ESC[35mH" >> printDefaultColour
+displayRow [Mark]     = putStr "\ESC[34mX" >> printDefaultColour
+displayRow [Number n] = putStr ("\ESC[32m" ++ (show n)) >> printDefaultColour
+displayRow ((Empty):xs)    = putStr "\ESC[36mE, " >> displayRow xs
+displayRow ((Mine):xs)     = putStr "\ESC[31mM, " >> displayRow xs
+displayRow ((Hidden):xs)   = putStr "\ESC[35mH, " >> displayRow xs
+displayRow ((Mark):xs)     = putStr "\ESC[34mX, " >> displayRow xs
+displayRow ((Number n):xs) = putStr ("\ESC[32m" ++ (show n ++ ", ")) >> displayRow xs
 
-gameState :: Game
-gameState = setup 9 9 Empty
+gameState :: (Int,Int) -> Game
+gameState (x,y) = setup x y Empty
 
-playerGameState:: Game
-playerGameState = setup 9 9 Hidden
+playerGameState :: (Int,Int) -> Game
+playerGameState (x,y) = setup x y Hidden
 
-playerGame :: IO Game
-playerGame = do
+playerGame :: (Int,Int) -> IO Game
+playerGame size = do
     putStrLn "Player Game State"
-    return $ playerGameState
+    return $ playerGameState size
 
-game :: IO Game
-game = do
+game :: (Int,Int) -> IO Game
+game size = do
     putStrLn "Game State"
-    let (_, (x, y)) = gameState
+    let (_, (x, y)) = gameState size 
     mines <- generateMines (x,y) 8
-    let mineGame   = placeRandomList gameState (mines) Mine
+    let mineGame   = placeRandomList (gameState size) (mines) Mine
     let numberGame = placeNumbers mineGame mines
     return $ numberGame
 
 gameLoop :: Game -> Game -> IO ()
 gameLoop pG lG = do
     displayGame pG
-    if (countSquares pG Number) + (countSquares pG Empty) == (countSquares lG Number) + (countSquares lG Empty)
-        then putStrLn "You win"
+    if match ((locateSquares pG Mark) ++ (locateSquares pG Hidden)) (locateSquares lG Mine) 
+        then do 
+            putStrLn "You win"
+            displayGame lG
         else do
-            putStr "Mark or select square (m/s)?: "
+            putStrLn "Mark or select square (m/s)?: "
             ms <- getLine
-            putStr "Give x coordinate "
+            putStrLn "Give x coordinate "
             x <- getLine
-            putStr "Give y coordinate "
+            putStrLn "Give y coordinate "
             y <- getLine
             let xInt = read x :: Int
             let yInt = read y :: Int
@@ -232,7 +256,8 @@ gameLoop pG lG = do
                 Just a  -> do
                     if ms == "m"
                         then do
-                            if a == Mark
+                            let psq = revealSquare pG (xInt, yInt)
+                            if psq == Just Mark
                                 then do
                                     putStrLn "You have marked the square"
                                     gameLoop (place pG (xInt, yInt) Hidden) lG
@@ -243,8 +268,7 @@ gameLoop pG lG = do
                             putStrLn ("The Square is " ++ (show a))
                             case a of
                                 Mine -> do
-                                    let updatedGame = (place pG (xInt,yInt) a)
-                                    displayGame updatedGame
+                                    displayGame lG
                                     putStrLn "Game Over"
                                 _    -> do
                                     let updatedGame = (place pG (xInt,yInt) a)
