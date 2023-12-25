@@ -110,7 +110,6 @@ uisetup window = do
                     let posX = min (floor (x / 25)) h -- min because the canvas can technically have out of index in the outer edges 
                     let posY = min (floor (y / 25)) w
 
-
                     pG <- liftIO $ readIORef pGRef
                     lG <- liftIO $ readIORef lGRef
 
@@ -197,7 +196,6 @@ youWin window lG@(b,(w,h)) playingRef canvas = do
     getBody window # set children [canvas, yw]
     liftIO $ writeIORef playingRef False
     return ()
-
 
 -- (width,height,numberOfMines)
 -- Difficulty level

@@ -205,14 +205,13 @@ solveLogic (x,y) pG@(b,(w,h)) lG
  | x == w = solveLogic (0,y+1) pG lG
  | (b !! y !! x) == Empty = revealNeighbours lG (x,y) ++ solveLogic (x+1,y) pG lG
  | solveisNumber && (solvegiveNumber - countMarksAroundRegion pG (x,y)) == 0 = giveLocationsExceptMark pG (x,y) ++ solveLogic (x+1,y) pG lG
- | otherwise                           = solveLogic (x+1,y) pG lG
+ | otherwise = solveLogic (x+1,y) pG lG
     where solveisNumber = case b !! y !! x of
                         Number n -> True
                         _        -> False
           solvegiveNumber = case b !! y !! x of
                                 Number n -> n
                                 _        -> 0
-
 -- This is my solver, if the result of calling solveLogic with placeLocations results in the same board (the marks weren't added, therefore make a random guess
 -- Note: This solver uses the players help, the player marks obvious spots by flagging it, then the solver will execute the otherwise branch and find the correct places
 solver :: Game -> Game -> Game

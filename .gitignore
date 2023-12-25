@@ -2,3 +2,6 @@
 latex/
 stack.yaml.lock
 *.cabal
+*.aux
+*.log
+*.toc
