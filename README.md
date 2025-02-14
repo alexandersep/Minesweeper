@@ -6,5 +6,5 @@ Minesweeper project in Haskell
 * CSS styling
 * Standard minesweeper with different difficulties
 * Automatic solver if flagged bombs
-[![Video Demo](https://raw.githubusercontent.com/alexandersep/Minesweeper/blob/main/Documentation/image.png](https://raw.githubusercontent.com/alexandersep/Minesweeper/blob/main/Documentation/MineSweeper-demo.mp4)
+[![Video Demo](https://github.com/alexandersep/Minesweeper/blob/main/Documentation/image.png](https://github.com/alexandersep/Minesweeper/blob/main/Documentation/MineSweeper-demo.mp4)
 
